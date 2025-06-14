@@ -1,0 +1,925 @@
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE     1
+
+
+MACRO ASSEMBLER A51 V8.02
+OBJECT MODULE PLACED IN BTL.OBJ
+ASSEMBLER INVOKED BY: C:\Keil\C51\BIN\A51.EXE BTL.A51 SET(SMALL) DEBUG EP
+
+LOC  OBJ            LINE     SOURCE
+
+                       1     ;BTL - VI XU LI
+                       2     ;SIMPLE CACULATOR
+                       3     ; Written by: HUYNH DANG KHOA           8:30PM  27/04/2022
+                       4     ;=====================================================
+  0080                 5     DBUS                    EQU             P0                      ;LCD
+  00A0                 6     RS                      BIT             P2.0
+  00A2                 7     RW                      BIT     P2.2
+  00A1                 8     E                       BIT             P2.1
+                       9     ;---------------------------
+  0090                10     ROW                             EQU             P1                      ;KEY PAD  
+  00A0                11     COLUMN                  EQU             P2
+                      12     ;---------------------------
+  0000                13     FLAG_0                  BIT             00H                     ;Co toan tu
+  0001                14     FLAG_1                  BIT             01H                     ;Co khoi 1
+  0002                15     FLAG_2                  BIT             02H                     ;Co khoi 2
+  0003                16     FLAG_3                  BIT             03H                     ;Co tran khoi 1
+  0004                17     FLAG_4                  BIT             04H                     ;Co tran khoi 2
+  0005                18     FLAG_5                  BIT             05H                     ;Co ERROR SYNTAX
+  0006                19     FLAG_6                  BIT             06H                     ;Co OUT OF RANGE
+  0007                20     FLAG_7                  BIT             07H                     ;Co ANSWER
+                      21     
+  0008                22     FLAG_8                  BIT             08H                     ;Co de in ra so 0
+  0009                23     FLAG_9                  BIT             09H                     ;Co negative answer
+                      24     ;=======================================================
+0000                  25                                     ORG             0000H
+0000 020030           26                                     LJMP    MAIN 
+0003 02043E           27                                     LJMP    EX0_ISR
+                      28     
+000B                  29                                     ORG             00BH
+000B 02043F           30                                     LJMP    T0_ISR
+                      31                             
+0013                  32                                     ORG     0013H
+0013 020440           33                                     LJMP    EX1_ISR
+                      34     
+0023                  35                                     ORG     0023H
+0023 020441           36                                     LJMP    SPI_ISR
+                      37     ;===========================================
+0030                  38                                     ORG             0030H
+0030 75815F           39     MAIN:                   MOV             SP,#5FH 
+0033 9101             40                                     CALL    INITIAL
+                      41                                     ;-------------------
+                      42                                     
+                      43                                     ;-------------------
+0035 713D             44     LOOP_00:                CALL    START
+                      45                                     ;-------------------
+0037                  46     LOOP_01:                
+0037 7F32             47                                     MOV             R7,#50                          ;CHECK KEY 
+                             PAD
+0039 716E             48     LOOP_02:                CALL    CHECK_KEY
+003B 50FA             49                                     JNC             LOOP_01
+003D DFFA             50                                     DJNZ    R7,LOOP_02
+003F C0E0             51                                     PUSH    ACC                             
+0041 7F32             52     LOOP_03:                MOV             R7,#50                  
+0043 716E             53     LOOP_04:                CALL    CHECK_KEY
+0045 40FA             54                                     JC              LOOP_03
+0047 DFFA             55                                     DJNZ    R7,LOOP_04
+0049 D0E0             56                                     POP             ACC
+                      57                                 ;-------------------------
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE     2
+
+004B 30070E           58                                     JNB             FLAG_7,CHECK_RESET
+004E C0E0             59                                     PUSH    ACC
+0050 713D             60                                     CALL    START
+0052 7401             61                                     MOV             A,#01H                          ;RESET, xoa
+                              man hinh
+0054 9122             62                                     CALL    DELAY_2MS
+0056 C2A0             63                                     CLR             RS
+0058 9135             64                                     CALL    WRITE_OUT
+005A D0E0             65                                     POP             ACC
+                      66     
+                      67                                     ;----------------------------------------------------
+005C B48F0A           68     CHECK_RESET:    CJNE    A,#8FH,CHECK_EQUAL
+005F 7401             69                                     MOV             A,#01H                          ;RESET, xoa
+                              man hinh
+0061 9122             70                                     CALL    DELAY_2MS
+0063 C2A0             71                                     CLR             RS
+0065 9135             72                                     CALL    WRITE_OUT
+0067 80CC             73                                     SJMP    LOOP_00
+                      74     
+                      75                                     ;---------------------------------------------------    
+0069 B48E51           76     CHECK_EQUAL:    CJNE    A,#8EH,SAVE_PRINT       
+                      77                                                                                             ;DA
+                             U "="                        
+006C 30051E           78                                     JNB             FLAG_5,CHECK_EQUAL_2                    
+006F 7401             79     CHECK_EQUAL_1:  MOV             A,#01H                          ;Co ERROR 
+0071 9122             80                                     CALL    DELAY_2MS                       ;xoa man hinh
+0073 C2A0             81                                     CLR             RS                              
+0075 9135             82                                     CALL    WRITE_OUT
+                      83     
+0077 9003C8           84                                     MOV             DPTR,#TAB_ERROR1
+007A 7151             85                                     CALL    PRINT_LINE
+                      86     
+007C 74C0             87                                     MOV             A,#0C0H                         ;Chuyen con
+                              tro ve dau dong 2
+007E 9122             88                                     CALL    DELAY_2MS
+0080 C2A0             89                                     CLR             RS
+0082 9135             90                                     CALL    WRITE_OUT
+                      91     
+0084 9003D8           92                                     MOV             DPTR,#TAB_ERROR2
+0087 7151             93                                     CALL    PRINT_LINE
+0089 D207             94                                     SETB    FLAG_7                          ;SET FLAG ANSWER
+008B 80AA             95                                     JMP             LOOP_01                         
+                      96                                     ;------------------------
+008D E520             97     CHECK_EQUAL_2:  MOV             A,20H
+008F 5407             98                                     ANL             A,#00000111B
+0091 B40302           99                                     CJNE    A,#03H,SPREAD_BCD_00
+0094 80D9            100                                     SJMP    CHECK_EQUAL_1   
+                     101                                     ;------------------------                               
+0096                 102     SPREAD_BCD_00:
+0096 4195            103                                     JMP             SPREAD_BCD                                 
+                                                                                                          
+                     104                                     ;------------------------
+0098                 105     CALCULATE:              
+0098 E530            106                                     MOV             A,30H
+009A C2E7            107                                     CLR             ACC.7
+009C B40A02          108                                     CJNE    A,#0AH,CALCULATE_1
+009F 807C            109                                     JMP             PLUS
+00A1 B40B02          110     CALCULATE_1:    CJNE    A,#0BH,CALCULATE_2
+00A4 214B            111                                     JMP             MINUS
+00A6 B40C02          112     CALCULATE_2:    CJNE    A,#0CH,CALCULATE_3
+00A9 21A7            113                                     JMP             MULTIPLY
+00AB B40D02          114     CALCULATE_3:    CJNE    A,#0DH,CALCULATE_4
+00AE 4107            115                                     JMP             DIVIDE
+                     116                                     ;-------------------------
+00B0                 117     CALCULATE_4:                            
+00B0 853541          118                                     MOV             41H,35H
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE     3
+
+00B3 853642          119                                     MOV             42H,36H
+00B6 853743          120                                     MOV             43H,37H
+00B9 51B9            121                                     CALL    PRINT_ANS
+00BB 0137            122                                     JMP             LOOP_01
+                     123                                     ;-------------------------------------------------
+00BD 30E71A          124     SAVE_PRINT:             JNB             ACC.7,NUM
+                     125     
+00C0 30010C          126     OPERAND:                JNB             FLAG_1,ERROR            ;MA LA TOAN HANG           
+                                                                                                  
+00C3 200209          127                                     JB              FLAG_2,ERROR                               
+                                  
+00C6 200006          128                                     JB              FLAG_0,ERROR
+00C9 D200            129                                     SETB    FLAG_0
+00CB F530            130                                     MOV             30H,A
+00CD 8002            131                                     SJMP    OPERAND1
+00CF D205            132     ERROR:                  SETB    FLAG_5
+00D1 C2E7            133     OPERAND1:               CLR             ACC.7
+00D3 9003B9          134                                     MOV             DPTR,#TAB_ASCII                         
+00D6 715F            135                                     CALL    PRINT_TAB
+00D8 0137            136                                     JMP             LOOP_01 
+                     137                                                             
+                     138                                     ;-----------------------------------------------------
+00DA 200020          139     NUM:                    JB              FLAG_0,KHOI2_00                 ;MA LA SO
+                     140     
+00DD 300302          141     KHOI1_00:               JNB             FLAG_3,KHOI1_01                 ;KHOI 1
+00E0 80ED            142                                     JMP             ERROR                                   ;TR
+                             AN ROI
+                     143     
+00E2 D201            144     KHOI1_01:               SETB    FLAG_1
+00E4 7831            145                                     MOV             R0,#31H
+00E6 71F6            146                                     CALL    SHIFT_3nibles
+00E8 C0E0            147                                     PUSH    ACC
+00EA 2531            148                                     ADD             A,31H
+00EC F531            149                                     MOV             31H,A
+00EE DD04            150                                     DJNZ    R5,KHOI1_02
+00F0 D203            151                                     SETB    FLAG_3
+00F2 D205            152                                     SETB    FLAG_5
+00F4 D0E0            153     KHOI1_02:               POP             ACC     
+00F6 9003B9          154                                     MOV             DPTR,#TAB_ASCII         
+00F9 715F            155                                     CALL    PRINT_TAB
+00FB 0137            156                                     JMP             LOOP_01
+                     157                                     ;-----------------------
+00FD 300402          158     KHOI2_00:               JNB             FLAG_4,KHOI2_01                 ;KHOI 2
+0100 80CD            159                                     JMP             ERROR                                   ;TR
+                             AN ROI
+                     160     
+0102 D202            161     KHOI2_01:               SETB    FLAG_2
+0104 7833            162                                     MOV             R0,#33H
+0106 71F6            163                                     CALL    SHIFT_3nibles
+0108 C0E0            164                                     PUSH    ACC
+010A 2533            165                                     ADD             A,33H
+010C F533            166                                     MOV             33H,A
+010E DC04            167                                     DJNZ    R4,KHOI2_02
+0110 D204            168                                     SETB    FLAG_4
+0112 D205            169                                     SETB    FLAG_5
+0114 D0E0            170     KHOI2_02:               POP             ACC
+0116 9003B9          171                                     MOV             DPTR,#TAB_ASCII                 
+0119 715F            172                                     CALL    PRINT_TAB
+011B 0137            173                                     JMP             LOOP_01
+                     174     
+                     175                                     ;-------------------------------------
+011D 7935            176     PLUS:                   MOV             R1,#35H
+011F 7839            177                                     MOV             R0,#39H
+0121 3133            178                                     CALL    ADD_4DIGITS
+                     179                                     ;------------------
+0123 853541          180     PLUS_1:                 MOV             41H,35H
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE     4
+
+0126 853642          181                                     MOV             42H,36H
+0129 853743          182                                     MOV             43H,37H
+012C 853844          183                                     MOV             44H,38H
+012F 51B9            184                                     CALL    PRINT_ANS
+0131 0137            185                                     JMP             LOOP_01
+                     186                                     ;--------------------------------------
+0133 C3              187     ADD_4DIGITS:    CLR             C                               ;CONG (R1+3)(R1+2)(R1+1)R1 
+                             <= (R1+3)(R1+2)(R1+1)R1 + (R1+3)(R0+2)(R0+1)R0 
+                     188                                                                                     ;KHONG TRAN
+                              VI 999*9 = 8991
+0134 7E04            189                                     MOV             R6,#4
+0136 313B            190     ADD_4DIGITS_1:  CALL    FULL_ADDER                                                         
+                                                                                                                  
+0138 DEFC            191                                     DJNZ    R6,ADD_4DIGITS_1
+013A 22              192                                     RET     
+                     193                                     ;---------------------                  
+013B E7              194     FULL_ADDER:             MOV             A,@R1
+013C 86F0            195                                     MOV             B,@R0
+013E 35F0            196                                     ADDC    A,B
+0140 D4              197                                     DA              A
+0141 B40A00          198                                     CJNE    A,#10,$+3
+0144 B3              199                                     CPL             C
+0145 540F            200                                     ANL             A,#0FH
+0147 F7              201                                     MOV             @R1,A
+0148 09              202                                     INC             R1
+0149 08              203                                     INC             R0
+014A 22              204                                     RET
+                     205                                     ;-------------------------------------
+                     206     
+014B 7938            207     MINUS:                  MOV             R1,#38H
+014D 783C            208                                     MOV             R0,#3CH
+014F 316D            209                                     CALL    COMPARE_4DIGITS
+0151 4008            210                                     JC              POSITIVE
+                     211                                     ;----------------------
+0153 7935            212                                     MOV             R1,#35H
+0155 7839            213                                     MOV             R0,#39H
+0157 3163            214                                     CALL    XCH_4DIGITS
+0159 D209            215                                     SETB    FLAG_9
+                     216                                     ;-------------------
+                     217                                                                     
+015B 7935            218     POSITIVE:               MOV             R1,#35H
+015D 7839            219                                     MOV             R0,#39H
+015F 3182            220                                     CALL    SUBB_4DIGITS                                       
+                                                  
+0161 80C0            221                                     JMP             PLUS_1
+                     222                                     ;----------------------
+0163                 223     XCH_4DIGITS:
+0163 7F04            224                                     MOV             R7,#4
+0165 E7              225     XCH_4DIGITS_0:  MOV             A,@R1
+0166 C6              226                                     XCH             A,@R0
+0167 F7              227                                     MOV             @R1,A
+0168 08              228                                     INC             R0
+0169 09              229                                     INC             R1
+016A DFF9            230                                     DJNZ    R7,XCH_4DIGITS_0
+016C 22              231                                     RET
+                     232                                             
+                     233                                     ;-----------------------
+016D                 234     COMPARE_4DIGITS:        
+016D 7A04            235                                     MOV             R2,#4
+016F E7              236     COM_0:                  MOV             A,@R1                                   ;S0 SANH 4D
+                             IGITS TU CAO DEN THAP, IF R1>=R0 THEN C=1, ELSE C=0
+0170 C3              237                                     CLR             C
+0171 96              238                                     SUBB    A,@R0
+0172 B40006          239                                     CJNE    A,#0,COM_1
+0175 18              240                                     DEC             R0
+0176 19              241                                     DEC             R1
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE     5
+
+0177 DAF6            242                                     DJNZ    R2,COM_0
+0179 D3              243                                     SETB    C
+017A 22              244                                     RET
+017B 30E702          245     COM_1:                  JNB             ACC.7,COM_2
+017E C3              246                                     CLR             C
+017F 22              247                                     RET
+0180 D3              248     COM_2:                  SETB    C
+0181 22              249                                     RET
+                     250     
+                     251                                     ;-------------------------
+0182                 252     SUBB_4DIGITS:                                                                           ;SO
+                              LON - SO BE > 0
+0182 C3              253                                     CLR             C
+0183 318C            254                                     CALL    FULL_SUBTRACTOR
+0185 318C            255                                     CALL    FULL_SUBTRACTOR                         
+0187 318C            256                                     CALL    FULL_SUBTRACTOR                 
+0189 318C            257                                     CALL    FULL_SUBTRACTOR                         
+018B 22              258                                     RET
+                     259                                     ;-------------------------
+018C                 260     FULL_SUBTRACTOR:
+018C C0D0            261                                     PUSH    PSW
+018E E7              262                                     MOV             A,@R1
+018F 86F0            263                                     MOV             B,@R0
+0191 95F0            264                                     SUBB    A,B
+0193 20E705          265                                     JB              ACC.7,F_S_0
+0196 D0D0            266                                     POP             PSW
+0198 C3              267                                     CLR             C
+0199 8008            268                                     SJMP    F_S_1
+019B E7              269     F_S_0:                  MOV             A,@R1
+019C 240A            270                                     ADD             A,#10
+019E D0D0            271                                     POP             PSW
+01A0 95F0            272                                     SUBB    A,B
+01A2 D3              273                                     SETB    C
+01A3 F7              274     F_S_1:                  MOV             @R1,A
+01A4 09              275                                     INC             R1
+01A5 08              276                                     INC             R0
+01A6 22              277                                     RET
+                     278     
+                     279                                     ;--------------------------------------
+01A7 7400            280     MULTIPLY:               MOV             A,#0
+01A9 B53107          281                                     CJNE    A,31H,CHECK_ZERO
+01AC B53204          282                                     CJNE    A,32H,CHECK_ZERO
+01AF 51B9            283     ZERO:                   CALL    PRINT_ANS
+01B1 0137            284                                     JMP             LOOP_01
+                     285     
+01B3 B53305          286     CHECK_ZERO:             CJNE    A,33H,NON_ZERO_01
+01B6 B53402          287                                     CJNE    A,34H,NON_ZERO_01
+01B9 80F4            288                                     SJMP    ZERO
+                     289                                     ;------------------------
+                     290     
+01BB                 291     NON_ZERO_01:    
+01BB C03A            292                                     PUSH    3AH
+01BD AF39            293                                     MOV             R7,39H
+01BF 7841            294                                     MOV             R0,#41H
+01C1 31D0            295                                     CALL    SINGLE_MUL
+                     296                                     ;-----------------
+01C3 D0E0            297                                     POP             ACC
+01C5 FF              298                                     MOV             R7,A
+01C6 31D0            299                                     CALL    SINGLE_MUL
+                     300                                     ;-----------------
+01C8 AF34            301                                     MOV             R7,34H
+01CA 31D0            302                                     CALL    SINGLE_MUL
+                     303                                     ;-----------------
+01CC 51B9            304                                     CALL    PRINT_ANS
+01CE 0137            305                                     JMP             LOOP_01
+                     306                                     ;-------------------
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE     6
+
+01D0                 307     SINGLE_MUL:
+01D0 882F            308                                     MOV             2FH,R0                  ;SAVE R0
+                     309                                     ;-------------
+01D2 753500          310                                     MOV             35H,#0
+01D5 753600          311                                     MOV             36H,#0
+01D8 753700          312                                     MOV             37H,#0
+01DB 753800          313                                     MOV             38H,#0
+                     314                                     ;--------------
+01DE BF0002          315                                     CJNE    R7,#0,SINGLE_MUL_0
+01E1 800E            316                                     SJMP    SINGLE_MUL_2
+                     317                                     ;--------------
+01E3 7831            318     SINGLE_MUL_0:   MOV             R0,#31H
+01E5 7939            319                                     MOV             R1,#39H 
+01E7 51A3            320                                     CALL    SPREAD_BCD_01                           
+                     321                                     ;--------------
+01E9 7935            322     SINGLE_MUL_1:   MOV             R1,#35H
+01EB 7839            323                                     MOV             R0,#39H
+01ED 3133            324                                     CALL    ADD_4DIGITS
+01EF DFF8            325                                     DJNZ    R7,SINGLE_MUL_1
+                     326                                     ;--------------
+01F1 7935            327     SINGLE_MUL_2:   MOV             R1,#35H
+01F3 A82F            328                                     MOV             R0,2FH                  ;LAY LAI R0
+01F5 3133            329                                     CALL    ADD_4DIGITS
+                     330                                     
+01F7 A82F            331                                     MOV             R0,2FH
+01F9 A635            332                                     MOV             @R0,35H
+01FB 08              333                                     INC             R0
+01FC A636            334                                     MOV             @R0,36H
+01FE 08              335                                     INC             R0
+01FF A637            336                                     MOV             @R0,37H
+0201 08              337                                     INC             R0
+0202 A638            338                                     MOV             @R0,38H
+0204 18              339                                     DEC             R0
+0205 18              340                                     DEC             R0
+0206 22              341                                     RET
+                     342                                                             
+                     343                                     ;---------------------------------------
+0207 7400            344     DIVIDE:                 MOV             A,#0
+0209 B53305          345                                     CJNE    A,33H,NON_ZERO_02
+020C B53402          346                                     CJNE    A,34H,NON_ZERO_02
+020F 016F            347                                     JMP             CHECK_EQUAL_1
+0211 B53105          348     NON_ZERO_02:    CJNE    A,31H,NON_ZERO_03
+0214 B53202          349                                     CJNE    A,32H,NON_ZERO_03
+0217 8096            350                                     SJMP    ZERO
+                     351                                     ;-----------------------
+0219                 352     NON_ZERO_03:            
+0219 515C            353                                     CALL    DIV_4DIGITS
+                     354                                     ;-----------------------
+021B 7F04            355                                     MOV             R7,#4
+021D 7835            356                                     MOV             R0,#35H
+021F B6000D          357     DIVIDE_0:               CJNE    @R0,#0,DIVIDE_1         ;Remainder = 0?
+0222 08              358                                     INC             R0
+0223 DFFA            359                                     DJNZ    R7,DIVIDE_0
+                     360                                     ;------------------------
+0225 793D            361                                     MOV             R1,#3DH                         ;Remainder 
+                             = 0 then PRINT_ANS
+0227 7841            362                                     MOV             R0,#41H
+0229 3163            363                                     CALL    XCH_4DIGITS
+022B 51B9            364                                     CALL    PRINT_ANS
+022D 0137            365                                     JMP             LOOP_01
+                     366                                     ;------------------------
+022F                 367     DIVIDE_1:               
+022F 793D            368                                     MOV             R1,#3DH                         ;Remainder 
+                             =! 0 
+0231 784C            369                                     MOV             R0,#4CH 
+0233 3163            370                                     CALL    XCH_4DIGITS                     
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE     7
+
+0235 754B0E          371                                     MOV             4BH,#0EH                        ;DAU '.' TH
+                             AP PHAN
+                     372                                     ;------------------------                               
+0238 7F0B            373                                     MOV             R7,#11                          ;10 SO SAU 
+                             DAU PHAY + 40H DE XET LAM TRON
+023A 784A            374                                     MOV             R0,#4AH
+023C                 375     DIVIDE_2:               
+023C 882F            376                                     MOV             2FH,R0
+023E 5189            377                                     CALL    SHIFT_4DIGITS           ;REMAINDER X 10
+0240 515C            378                                     CALL    DIV_4DIGITS
+0242 A82F            379                                     MOV             R0,2FH
+0244 A63D            380                                     MOV             @R0,3DH
+0246 18              381                                     DEC             R0
+0247 DFF3            382                                     DJNZ    R7,DIVIDE_2
+0249 8541B0          383                                     MOV             P3,41H
+                     384                                     ;------------------
+024C E53D            385                                     MOV             A,3DH                           ;LAM TRON
+024E B40500          386                                     CJNE    A,#5,$+3
+0251 B3              387                                     CPL             C
+0252 E541            388                                     MOV             A,41H
+0254 3400            389                                     ADDC    A,#0
+0256 F541            390                                     MOV             41H,A
+                     391                                     ;-----------------
+0258 51F3            392                                     CALL    PRINT_DIV
+025A 0137            393                                     JMP             LOOP_01
+                     394     
+                     395                                     ;---------------------------------
+025C                 396     DIV_4DIGITS:    
+025C 755001          397                                     MOV             50H,#1
+025F 753D00          398                                     MOV             3DH,#0
+0262 753E00          399                                     MOV             3EH,#0
+0265 753F00          400                                     MOV             3FH,#0
+0268 754000          401                                     MOV             40H,#0
+                     402                                     ;----------------
+026B 7938            403                                     MOV             R1,#38H
+026D 783C            404                                     MOV             R0,#3CH
+026F 316D            405                                     CALL    COMPARE_4DIGITS
+0271 4001            406                                     JC              DIV_4DIGITS_1
+0273 22              407                                     RET
+                     408                                     ;-----------------
+0274                 409     DIV_4DIGITS_1:
+0274 793D            410                                     MOV             R1,#3DH
+0276 7850            411                                     MOV             R0,#50H
+0278 3133            412                                     CALL    ADD_4DIGITS
+027A 7935            413                                     MOV             R1,#35H
+027C 7839            414                                     MOV             R0,#39H
+027E 3182            415                                     CALL    SUBB_4DIGITS
+                     416                                     ;-------------------
+0280 7938            417                                     MOV             R1,#38H
+0282 783C            418                                     MOV             R0,#3CH
+0284 316D            419                                     CALL    COMPARE_4DIGITS
+0286 40EC            420                                     JC              DIV_4DIGITS_1
+0288 22              421                                     RET
+                     422                                     ;------------------------------                         
+0289                 423     SHIFT_4DIGITS:                                                            ;NHAN 10 35H
+0289 7835            424                                     MOV             R0,#35H
+028B 7400            425                                     MOV             A,#0
+028D C6              426                                     XCH             A,@R0
+028E 08              427                                     INC             R0
+                     428     
+028F C6              429                                     XCH             A,@R0
+0290 08              430                                     INC             R0
+0291 C6              431                                     XCH             A,@R0
+0292 08              432                                     INC             R0
+0293 C6              433                                     XCH             A,@R0
+0294 22              434                                     RET
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE     8
+
+                     435     
+                     436     ;----------------------------------------------
+0295                 437     SPREAD_BCD:             
+0295 7831            438                                     MOV             R0,#31H
+0297 7935            439                                     MOV             R1,#35H
+0299 51A3            440                                     CALL    SPREAD_BCD_01
+029B 7833            441                                     MOV             R0,#33H
+029D 7939            442                                     MOV             R1,#39H 
+029F 51A3            443                                     CALL    SPREAD_BCD_01                                      
+                                          
+02A1 0198            444                                     JMP             CALCULATE
+                     445     
+                     446     ;===================================================================
+02A3 C0E0            447     SPREAD_BCD_01:  PUSH    ACC
+02A5 E6              448                                     MOV             A,@R0
+02A6 540F            449                                     ANL             A,#0FH
+02A8 F7              450                                     MOV             @R1,A
+02A9 E6              451                                     MOV             A,@R0
+02AA 54F0            452                                     ANL             A,#0F0H
+02AC C4              453                                     SWAP    A
+02AD 09              454                                     INC             R1
+02AE F7              455                                     MOV             @R1,A
+02AF 08              456                                     INC             R0
+02B0 E6              457                                     MOV             A,@R0
+02B1 09              458                                     INC             R1
+02B2 F7              459                                     MOV             @R1,A
+02B3 09              460                                     INC             R1
+02B4 7700            461                                     MOV             @R1,#0
+02B6 D0E0            462                                     POP             ACC
+02B8 22              463                                     RET
+                     464     
+                     465     ;===========================================================================
+02B9 74C0            466     PRINT_ANS:              MOV             A,#0C0H                         ;Chuyen con tro ve 
+                             dau dong 2
+02BB 9122            467                                     CALL    DELAY_2MS
+02BD C2A0            468                                     CLR             RS
+02BF 9135            469                                     CALL    WRITE_OUT
+                     470     
+02C1 7400            471                                     MOV             A,#0
+02C3 9003E8          472                                     MOV             DPTR,#TAB_ANSWER
+02C6 C0E0            473     PRINT_ANS_0:    PUSH    ACC
+02C8 715F            474                                     CALL    PRINT_TAB
+02CA D0E0            475                                     POP             ACC
+02CC 04              476                                     INC             A
+02CD 50F7            477                                     JNC             PRINT_ANS_0
+                     478                                     ;--------------------------
+02CF 9003B9          479                                     MOV             DPTR,#TAB_ASCII          
+02D2 300904          480                                     JNB             FLAG_9,PRINT_ANS_1      ;Xet co negative an
+                             swer
+02D5 740B            481                                     MOV             A,#0BH
+02D7 715F            482                                 CALL        PRINT_TAB
+                     483                                     ;---------------------------
+02D9 7846            484     PRINT_ANS_1:    MOV             R0,#46H
+02DB 7F05            485                                     MOV             R7,#5                           ;41H HIEN T
+                             HI BANG TAY NEN 6 - 1 = 5
+02DD C208            486                                     CLR             FLAG_8
+                     487                                     ;-----------------------                                
+02DF                 488     PRINT_ANS_2:    
+02DF E6              489                                     MOV             A,@R0
+02E0 200802          490                                     JB              FLAG_8,PRINT_ANS_3
+02E3 6004            491                                     JZ              PRINT_ANS_4
+02E5 715F            492     PRINT_ANS_3:    CALL    PRINT_TAB
+02E7 D208            493                                     SETB    FLAG_8
+02E9 18              494     PRINT_ANS_4:    DEC             R0
+02EA DFF3            495                                     DJNZ    R7,PRINT_ANS_2
+                     496                             
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE     9
+
+02EC E541            497                                     MOV             A,41H
+02EE 715F            498                                     CALL    PRINT_TAB
+02F0 D207            499                                     SETB    FLAG_7                          ;SET FLAG ANSWER
+02F2 22              500                                     RET
+                     501     
+                     502     ;=========================================================
+02F3 74C0            503     PRINT_DIV:              MOV             A,#0C0H                         ;Chuyen con tro ve 
+                             dau dong 2
+02F5 9122            504                                     CALL    DELAY_2MS
+02F7 C2A0            505                                     CLR             RS
+02F9 9135            506                                     CALL    WRITE_OUT
+                     507     
+02FB 7400            508                                     MOV             A,#0
+02FD 9003F3          509                                     MOV             DPTR,#TAB_DIV
+0300 C0E0            510     PRINT_DIV_0:    PUSH    ACC
+0302 715F            511                                     CALL    PRINT_TAB
+0304 D0E0            512                                     POP             ACC
+0306 04              513                                     INC             A
+0307 50F7            514                                     JNC             PRINT_DIV_0
+                     515                                     ;--------------------------------------
+0309 9003B9          516                                     MOV             DPTR,#TAB_ASCII          
+030C 784F            517     PRINT_DIV_1:    MOV             R0,#4FH
+030E 7F03            518                                     MOV             R7,#3                           ;4CH HIEN T
+                             HI BANG TAY
+0310 C208            519                                     CLR             FLAG_8
+                     520                                     ;-----------------------                                
+0312                 521     PRINT_DIV_2:    
+0312 E6              522                                     MOV             A,@R0
+0313 200802          523                                     JB              FLAG_8,PRINT_DIV_3
+0316 6004            524                                     JZ              PRINT_DIV_4
+0318 715F            525     PRINT_DIV_3:    CALL    PRINT_TAB
+031A D208            526                                     SETB    FLAG_8
+031C 18              527     PRINT_DIV_4:    DEC             R0
+031D DFF3            528                                     DJNZ    R7,PRINT_DIV_2
+                     529                                     ;----------------
+031F E54C            530                                     MOV             A,4CH
+0321 715F            531                                     CALL    PRINT_TAB
+0323 E54B            532                                     MOV             A,4BH
+0325 715F            533                                     CALL    PRINT_TAB
+                     534                                     ;-----------------
+0327 7F0A            535                                     MOV             R7,#10
+0329 7841            536                                     MOV             R0,#41H
+                     537     
+032B E6              538     PRINT_DIV_5:    MOV             A,@R0
+032C 7004            539                                     JNZ             PRINT_DIV_6
+032E 08              540                                     INC             R0
+032F 1F              541                                     DEC             R7
+0330 80F9            542                                     JMP             PRINT_DIV_5
+0332                 543     PRINT_DIV_6:    
+0332 784A            544                                     MOV     R0,#4AH
+0334 E6              545     PRINT_DIV_7:    MOV             A,@R0
+0335 715F            546                                     CALL    PRINT_TAB
+0337 18              547                                     DEC             R0
+0338 DFFA            548                                     DJNZ    R7,PRINT_DIV_7
+                     549     
+033A D207            550                                     SETB    FLAG_7                          ;SET FLAG ANSWER
+033C 22              551                                     RET
+                     552                                                                                                
+                                  
+                     553     ;====================================
+033D 7D04            554     START:                  MOV             R5,#04H                         ;CAM SU DUNG R4, R5
+033F 7C04            555                                     MOV             R4,#04H
+0341 752000          556                                     MOV             20H,#00H                        ;Xoa co FLA
+                             G
+0344 752100          557                                     MOV             21H,#00H
+0347 7930            558                                     MOV             R1,#48                          ;Xoa RAM no
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE    10
+
+                             i tu 30H toi 5FH
+0349 7830            559                                     MOV             R0,#30H
+034B 7600            560     CLR_REG:                MOV             @R0,#00H
+034D 08              561                                     INC             R0
+034E D9FB            562                                     DJNZ    R1,CLR_REG
+0350 22              563                                     RET
+                     564     
+                     565     ;========================================
+0351 7F10            566     PRINT_LINE:             MOV             R7,#16
+0353 7400            567                                     MOV             A,#0
+0355 C0E0            568     PRINT_LINE_1:   PUSH    ACC
+0357 715F            569                                     CALL    PRINT_TAB
+0359 D0E0            570                                     POP             ACC
+035B 04              571                                     INC             A
+035C DFF7            572                                     DJNZ    R7,PRINT_LINE_1
+035E 22              573                                     RET
+                     574     
+                     575     ;=========================================
+035F 93              576     PRINT_TAB:              MOVC    A,@A+DPTR
+0360 B40003          577                                     CJNE    A,#00H,PRINT_TAB1
+0363 D3              578                                     SETB    C
+0364 8007            579                                     SJMP    PRINT_TAB2
+0366 9122            580     PRINT_TAB1:             CALL    DELAY_2MS
+0368 D2A0            581                                     SETB    RS
+036A 9135            582                                     CALL    WRITE_OUT
+036C C3              583                                     CLR             C
+036D 22              584     PRINT_TAB2:             RET
+                     585     
+                     586     ;=========================================
+036E 74EF            587     CHECK_KEY:              MOV             A,#0EFH                         
+0370 7E04            588                                     MOV             R6,#4
+0372 F5A0            589     CHECK_KEY1:             MOV             COLUMN,A
+0374 F522            590                                     MOV             22H,A
+0376 E590            591                                     MOV             A,ROW
+0378 540F            592                                     ANL             A,#0FH
+037A B40F08          593                                     CJNE    A,#0FH,CHECK_KEY2
+037D E522            594                                     MOV             A,22H
+037F 23              595                                     RL              A
+0380 DEF0            596                                     DJNZ    R6,CHECK_KEY1
+0382 C3              597                                     CLR             C
+0383 801B            598                                     SJMP    CHECK_KEY3
+                     599     
+0385 9003A1          600     CHECK_KEY2:             MOV             DPTR,#TAB1
+0388 24F9            601                                     ADD             A,#-7
+038A 93              602                                     MOVC    A,@A+DPTR
+038B C0E0            603                                     PUSH    ACC
+                     604     
+038D E522            605                                     MOV             A,22H
+038F 54F0            606                                     ANL             A,#0F0H
+0391 C4              607                                     SWAP    A
+0392 24F9            608                                     ADD             A,#-7
+0394 93              609                                     MOVC    A,@A+DPTR
+0395 23              610                                     RL              A
+0396 23              611                                     RL              A
+0397 D022            612                                     POP             22H
+0399 4522            613                                     ORL             A,22H
+                     614                                     
+039B 9003A9          615                                     MOV             DPTR,#TAB_KEY
+039E 93              616                                     MOVC    A,@A+DPTR
+039F D3              617                                     SETB    C
+03A0 22              618     CHECK_KEY3:             RET                             
+                     619     ;--------------------------------------------------------------
+03A1 03FFFFFF        620     TAB1:                   DB      03H,0FFH,0FFH,0FFH,02H,0FFH,01H,00H
+03A5 02FF0100                
+03A9 0704018F        621     TAB_KEY:                DB      07H,04H,01H,8FH,08H,05H,02H,00H,09H,06H,03H,8EH,8DH,8CH,8BH
+                             ,8AH
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE    11
+
+03AD 08050200                
+03B1 0906038E                
+03B5 8D8C8B8A                
+03B9 30313233        622     TAB_ASCII:              DB      '0123456789+-*/.'        ;7FH = ma DEL
+03BD 34353637                
+03C1 38392B2D                
+03C5 2A2F2E                  
+03C8 20205379        623     TAB_ERROR1:             DB      '  Syntax ERROR  '
+03CC 6E746178                
+03D0 20455252                
+03D4 4F522020                
+03D8 20204F55        624     TAB_ERROR2:             DB      '  OUT of RANGE  '
+03DC 54206F66                
+03E0 2052414E                
+03E4 47452020                
+03E8 20202020        625     TAB_ANSWER:             DB      '        = ',00H
+03EC 20202020                
+03F0 3D2000                  
+03F3 3D2000          626     TAB_DIV:                DB      '= ',00H                                ;16 - 2 - 4 = 10 SO
+                              SAU DAU PHAY
+                     627     ;==========================================
+03F6 C0E0            628     SHIFT_3nibles:  PUSH    ACC                             
+03F8 E6              629                                     MOV             A,@R0
+03F9 C4              630                                     SWAP    A
+03FA 08              631                                     INC             R0
+03FB D6              632                                     XCHD    A,@R0
+03FC 18              633                                     DEC             R0
+03FD F6              634                                     MOV             @R0,A
+03FE D0E0            635                                     POP             ACC
+0400 22              636                                     RET     
+                     637     
+                     638     ;===========================================
+0401 7438            639     INITIAL:                MOV             A,#38H                  ;Giao tiep 8bit, 2dong, 5x8
+                             dots
+0403 9122            640                                     CALL    DELAY_2MS
+0405 C2A0            641                                     CLR             RS
+0407 9135            642                                     CALL    WRITE_OUT
+                     643                                     ;----------------
+0409 7401            644                                     MOV             A,#01H                  ;Xoa man hinh
+040B 9122            645                                     CALL    DELAY_2MS
+040D C2A0            646                                     CLR             RS
+040F 9135            647                                     CALL    WRITE_OUT
+                     648                                     ;----------------
+0411 740F            649                                     MOV             A,#0FH                  ;Hien man hinh, cho
+                             p ky tu chi boi con tro
+0413 9122            650                                     CALL    DELAY_2MS
+0415 C2A0            651                                     CLR             RS
+0417 9135            652                                     CALL    WRITE_OUT
+                     653                                     ;----------------
+0419 7406            654                                     MOV             A,#06H                  ;Dich con tro sang 
+                             phai (khi ghi/doc data)
+041B 9122            655                                     CALL    DELAY_2MS
+041D C2A0            656                                     CLR             RS
+041F 9135            657                                     CALL    WRITE_OUT
+                     658                                     ;----------------
+0421 22              659                                     RET
+                     660     ;---------------------------------------------------------------
+0422 758901          661     DELAY_2MS:              MOV             TMOD,#00000001B
+0425 758CF8          662                                     MOV             TH0,#HIGH(-1989)                ;2ms = 2000
+                             0us
+0428 758A3B          663                                     MOV             TL0,#LOW(-1989)
+042B D28C            664                                     SETB    TR0
+042D 308DFD          665                                     JNB             TF0,$
+0430 C28C            666                                     CLR             TR0
+0432 C28D            667                                     CLR             TF0
+0434 22              668                                     RET
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE    12
+
+                     669     
+                     670     ;-----------------------------------------------------------------
+0435 F580            671     WRITE_OUT:              MOV             DBUS,A
+0437 C2A2            672                                     CLR             RW
+0439 D2A1            673                                     SETB    E
+043B C2A1            674                                     CLR             E
+043D 22              675                                     RET
+                     676     
+                     677     ;==================================================================
+043E                 678     EX0_ISR:                
+                     679     
+043E 32              680                                     RETI
+                     681     ;=============================================
+043F                 682     T0_ISR:                                                    
+                     683     
+043F 32              684                                     RETI
+                     685     ;=============================================
+0440                 686     EX1_ISR:        
+                     687     
+0440 32              688                                     RETI
+                     689     ;=============================================                          
+0441                 690     SPI_ISR:        
+                     691                             
+0441 32              692                                     RETI
+                     693                                     END
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE    13
+
+SYMBOL TABLE LISTING
+------ ----- -------
+
+
+N A M E             T Y P E  V A L U E   ATTRIBUTES
+
+ACC. . . . . . . .  D ADDR   00E0H   A   
+ADD_4DIGITS. . . .  C ADDR   0133H   A   
+ADD_4DIGITS_1. . .  C ADDR   0136H   A   
+B. . . . . . . . .  D ADDR   00F0H   A   
+CALCULATE. . . . .  C ADDR   0098H   A   
+CALCULATE_1. . . .  C ADDR   00A1H   A   
+CALCULATE_2. . . .  C ADDR   00A6H   A   
+CALCULATE_3. . . .  C ADDR   00ABH   A   
+CALCULATE_4. . . .  C ADDR   00B0H   A   
+CHECK_EQUAL. . . .  C ADDR   0069H   A   
+CHECK_EQUAL_1. . .  C ADDR   006FH   A   
+CHECK_EQUAL_2. . .  C ADDR   008DH   A   
+CHECK_KEY. . . . .  C ADDR   036EH   A   
+CHECK_KEY1 . . . .  C ADDR   0372H   A   
+CHECK_KEY2 . . . .  C ADDR   0385H   A   
+CHECK_KEY3 . . . .  C ADDR   03A0H   A   
+CHECK_RESET. . . .  C ADDR   005CH   A   
+CHECK_ZERO . . . .  C ADDR   01B3H   A   
+CLR_REG. . . . . .  C ADDR   034BH   A   
+COLUMN . . . . . .  D ADDR   00A0H   A   
+COMPARE_4DIGITS. .  C ADDR   016DH   A   
+COM_0. . . . . . .  C ADDR   016FH   A   
+COM_1. . . . . . .  C ADDR   017BH   A   
+COM_2. . . . . . .  C ADDR   0180H   A   
+DBUS . . . . . . .  D ADDR   0080H   A   
+DELAY_2MS. . . . .  C ADDR   0422H   A   
+DIVIDE . . . . . .  C ADDR   0207H   A   
+DIVIDE_0 . . . . .  C ADDR   021FH   A   
+DIVIDE_1 . . . . .  C ADDR   022FH   A   
+DIVIDE_2 . . . . .  C ADDR   023CH   A   
+DIV_4DIGITS. . . .  C ADDR   025CH   A   
+DIV_4DIGITS_1. . .  C ADDR   0274H   A   
+E. . . . . . . . .  B ADDR   00A0H.1 A   
+ERROR. . . . . . .  C ADDR   00CFH   A   
+EX0_ISR. . . . . .  C ADDR   043EH   A   
+EX1_ISR. . . . . .  C ADDR   0440H   A   
+FLAG_0 . . . . . .  B ADDR   0020H.0 A   
+FLAG_1 . . . . . .  B ADDR   0020H.1 A   
+FLAG_2 . . . . . .  B ADDR   0020H.2 A   
+FLAG_3 . . . . . .  B ADDR   0020H.3 A   
+FLAG_4 . . . . . .  B ADDR   0020H.4 A   
+FLAG_5 . . . . . .  B ADDR   0020H.5 A   
+FLAG_6 . . . . . .  B ADDR   0020H.6 A   
+FLAG_7 . . . . . .  B ADDR   0020H.7 A   
+FLAG_8 . . . . . .  B ADDR   0021H.0 A   
+FLAG_9 . . . . . .  B ADDR   0021H.1 A   
+FULL_ADDER . . . .  C ADDR   013BH   A   
+FULL_SUBTRACTOR. .  C ADDR   018CH   A   
+F_S_0. . . . . . .  C ADDR   019BH   A   
+F_S_1. . . . . . .  C ADDR   01A3H   A   
+INITIAL. . . . . .  C ADDR   0401H   A   
+KHOI1_00 . . . . .  C ADDR   00DDH   A   
+KHOI1_01 . . . . .  C ADDR   00E2H   A   
+KHOI1_02 . . . . .  C ADDR   00F4H   A   
+KHOI2_00 . . . . .  C ADDR   00FDH   A   
+KHOI2_01 . . . . .  C ADDR   0102H   A   
+KHOI2_02 . . . . .  C ADDR   0114H   A   
+LOOP_00. . . . . .  C ADDR   0035H   A   
+LOOP_01. . . . . .  C ADDR   0037H   A   
+LOOP_02. . . . . .  C ADDR   0039H   A   
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE    14
+
+LOOP_03. . . . . .  C ADDR   0041H   A   
+LOOP_04. . . . . .  C ADDR   0043H   A   
+MAIN . . . . . . .  C ADDR   0030H   A   
+MINUS. . . . . . .  C ADDR   014BH   A   
+MULTIPLY . . . . .  C ADDR   01A7H   A   
+NON_ZERO_01. . . .  C ADDR   01BBH   A   
+NON_ZERO_02. . . .  C ADDR   0211H   A   
+NON_ZERO_03. . . .  C ADDR   0219H   A   
+NUM. . . . . . . .  C ADDR   00DAH   A   
+OPERAND. . . . . .  C ADDR   00C0H   A   
+OPERAND1 . . . . .  C ADDR   00D1H   A   
+P0 . . . . . . . .  D ADDR   0080H   A   
+P1 . . . . . . . .  D ADDR   0090H   A   
+P2 . . . . . . . .  D ADDR   00A0H   A   
+P3 . . . . . . . .  D ADDR   00B0H   A   
+PLUS . . . . . . .  C ADDR   011DH   A   
+PLUS_1 . . . . . .  C ADDR   0123H   A   
+POSITIVE . . . . .  C ADDR   015BH   A   
+PRINT_ANS. . . . .  C ADDR   02B9H   A   
+PRINT_ANS_0. . . .  C ADDR   02C6H   A   
+PRINT_ANS_1. . . .  C ADDR   02D9H   A   
+PRINT_ANS_2. . . .  C ADDR   02DFH   A   
+PRINT_ANS_3. . . .  C ADDR   02E5H   A   
+PRINT_ANS_4. . . .  C ADDR   02E9H   A   
+PRINT_DIV. . . . .  C ADDR   02F3H   A   
+PRINT_DIV_0. . . .  C ADDR   0300H   A   
+PRINT_DIV_1. . . .  C ADDR   030CH   A   
+PRINT_DIV_2. . . .  C ADDR   0312H   A   
+PRINT_DIV_3. . . .  C ADDR   0318H   A   
+PRINT_DIV_4. . . .  C ADDR   031CH   A   
+PRINT_DIV_5. . . .  C ADDR   032BH   A   
+PRINT_DIV_6. . . .  C ADDR   0332H   A   
+PRINT_DIV_7. . . .  C ADDR   0334H   A   
+PRINT_LINE . . . .  C ADDR   0351H   A   
+PRINT_LINE_1 . . .  C ADDR   0355H   A   
+PRINT_TAB. . . . .  C ADDR   035FH   A   
+PRINT_TAB1 . . . .  C ADDR   0366H   A   
+PRINT_TAB2 . . . .  C ADDR   036DH   A   
+PSW. . . . . . . .  D ADDR   00D0H   A   
+ROW. . . . . . . .  D ADDR   0090H   A   
+RS . . . . . . . .  B ADDR   00A0H.0 A   
+RW . . . . . . . .  B ADDR   00A0H.2 A   
+SAVE_PRINT . . . .  C ADDR   00BDH   A   
+SHIFT_3NIBLES. . .  C ADDR   03F6H   A   
+SHIFT_4DIGITS. . .  C ADDR   0289H   A   
+SINGLE_MUL . . . .  C ADDR   01D0H   A   
+SINGLE_MUL_0 . . .  C ADDR   01E3H   A   
+SINGLE_MUL_1 . . .  C ADDR   01E9H   A   
+SINGLE_MUL_2 . . .  C ADDR   01F1H   A   
+SP . . . . . . . .  D ADDR   0081H   A   
+SPI_ISR. . . . . .  C ADDR   0441H   A   
+SPREAD_BCD . . . .  C ADDR   0295H   A   
+SPREAD_BCD_00. . .  C ADDR   0096H   A   
+SPREAD_BCD_01. . .  C ADDR   02A3H   A   
+START. . . . . . .  C ADDR   033DH   A   
+SUBB_4DIGITS . . .  C ADDR   0182H   A   
+T0_ISR . . . . . .  C ADDR   043FH   A   
+TAB1 . . . . . . .  C ADDR   03A1H   A   
+TAB_ANSWER . . . .  C ADDR   03E8H   A   
+TAB_ASCII. . . . .  C ADDR   03B9H   A   
+TAB_DIV. . . . . .  C ADDR   03F3H   A   
+TAB_ERROR1 . . . .  C ADDR   03C8H   A   
+TAB_ERROR2 . . . .  C ADDR   03D8H   A   
+TAB_KEY. . . . . .  C ADDR   03A9H   A   
+TF0. . . . . . . .  B ADDR   0088H.5 A   
+TH0. . . . . . . .  D ADDR   008CH   A   
+A51 MACRO ASSEMBLER  BTL                                                                  05/02/2022 11:13:00 PAGE    15
+
+TL0. . . . . . . .  D ADDR   008AH   A   
+TMOD . . . . . . .  D ADDR   0089H   A   
+TR0. . . . . . . .  B ADDR   0088H.4 A   
+WRITE_OUT. . . . .  C ADDR   0435H   A   
+XCH_4DIGITS. . . .  C ADDR   0163H   A   
+XCH_4DIGITS_0. . .  C ADDR   0165H   A   
+ZERO . . . . . . .  C ADDR   01AFH   A   
+
+
+REGISTER BANK(S) USED: 0 
+
+
+ASSEMBLY COMPLETE.  0 WARNING(S), 0 ERROR(S)
